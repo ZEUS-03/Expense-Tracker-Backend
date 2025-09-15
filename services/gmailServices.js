@@ -1,6 +1,6 @@
 const { google } = require("googleapis");
 const { setCredentials, refreshAccessToken } = require("../config/oauth");
-const { parseEmailBody } = require("../utils/emailParser");
+const parseEmailBody = require("../utils/emailParser");
 const logger = require("../utils/logger");
 
 class GmailService {
@@ -9,13 +9,13 @@ class GmailService {
   }
 
   async authenticate(user) {
+    // Check if access token needs refresh
+    const oauth2Client = setCredentials({
+      access_token: user.accessToken,
+      refresh_token: user.refreshToken,
+    });
+    this.gmail = google.gmail({ version: "v1", auth: oauth2Client });
     try {
-      // Check if access token needs refresh
-      const oauth2Client = setCredentials({
-        access_token: user.accessToken,
-        refresh_token: user.refreshToken,
-      });
-
       // Try to refresh token if needed
       try {
         const { credentials } = await oauth2Client.refreshAccessToken();
@@ -53,7 +53,7 @@ class GmailService {
       const query = {
         userId: "me",
         maxResults: Math.min(maxResults, 500), // Gmail API limit
-        q: syncAll ? "" : "newer_than:30d", // Default to last 30 days if not syncing all
+        // q: syncAll ? "" : "newer_than:30d", // Default to last 30 days if not syncing all
       };
 
       // If not syncing all, add date filter based on last sync
@@ -61,7 +61,7 @@ class GmailService {
         const lastSyncTimestamp = Math.floor(
           user.lastSyncDate.getTime() / 1000
         );
-        query.q = `after:${lastSyncTimestamp}`;
+        // query.q = `after:${lastSyncTimestamp}`;
       }
 
       logger.info(
@@ -95,11 +95,15 @@ class GmailService {
           const batchResults = await Promise.allSettled(batchPromises);
 
           batchResults.forEach((result, index) => {
-            if (result.status === "fulfilled" && result.value) {
+            if (
+              result.status === "fulfilled" &&
+              result.value &&
+              result.value.isTransactional
+            ) {
               emails.push(result.value);
             } else {
               logger.error(
-                `Failed to fetch email ${batch[index].id}:`,
+                `Failed to fetch email ${batch[index].id} or not transactional:`,
                 result.reason
               );
             }
@@ -149,7 +153,11 @@ class GmailService {
       const dateStr = getHeader("Date");
 
       // Parse email body
-      const { body, bodyPlain } = parseEmailBody(message.payload);
+      const { body, bodyPlain, isTransactional } = parseEmailBody(
+        message.payload,
+        subject,
+        from
+      );
 
       // Parse date
       let date = new Date();
@@ -179,6 +187,7 @@ class GmailService {
         body: body || "",
         bodyPlain: bodyPlain || "",
         labels,
+        isTransactional,
       };
     } catch (error) {
       logger.error(`Error fetching email details for ${messageId}:`, error);

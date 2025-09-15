@@ -3,7 +3,7 @@ const Email = require("../models/Email");
 const Transaction = require("../models/Transaction");
 const { requireAuth, checkSyncPermission } = require("../middleware/auth");
 const { syncLimiter, processLimiter } = require("../middleware/ratelimiter");
-const gmailService = require("../services/gmailService");
+const gmailService = require("../services/gmailServices");
 const classificationService = require("../services/classificationService");
 const extractionService = require("../services/extractionService");
 const logger = require("../utils/logger");
@@ -282,9 +282,8 @@ router.get("/transactions/stats", async (req, res) => {
 async function syncEmails(user, maxResults, syncAll) {
   try {
     logger.info(`Starting email sync for user: ${user.email}`);
-
+    console.log(user, maxResults, syncAll);
     const emails = await gmailService.fetchEmails(user, maxResults, syncAll);
-
     let savedCount = 0;
     for (const emailData of emails) {
       try {

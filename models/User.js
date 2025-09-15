@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Email = require("./Email");
 
 const userSchema = new mongoose.Schema(
   {
@@ -38,6 +39,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    emails: [{ type: mongoose.Schema.Types.ObjectId, ref: "Email" }],
     settings: {
       autoSync: {
         type: Boolean,

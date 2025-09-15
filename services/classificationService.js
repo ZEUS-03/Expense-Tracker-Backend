@@ -13,8 +13,7 @@ class ClassificationService {
     if (!this.serviceUrl) {
       throw new Error("Classification service URL not configured");
     }
-
-    if (!emailContent || emailContent.trim().length === 0) {
+    if (!emailContent) {
       logger.warn("Empty email content provided for classification");
       return {
         isTransactional: false,
@@ -30,11 +29,8 @@ class ClassificationService {
         );
 
         // Prepare the request payload
-        const payload = {
-          text: emailContent.substring(0, 10000), // Limit to first 10k characters
-        };
 
-        const response = await axios.post(this.serviceUrl, payload, {
+        const response = await axios.post(this.serviceUrl, emailContent, {
           timeout: this.timeout,
           headers: {
             "Content-Type": "application/json",
@@ -43,15 +39,9 @@ class ClassificationService {
         });
 
         // Handle different response formats from Hugging Face
-        const result = this.parseClassificationResponse(response.data);
+        // const result = this.parseClassificationResponse(response.data);
 
-        logger.info(
-          `Classification completed: ${
-            result.isTransactional ? "Transactional" : "Non-transactional"
-          } (confidence: ${result.confidence})`
-        );
-
-        return result;
+        return response.category === "transactional";
       } catch (error) {
         logger.error(`Classification attempt ${attempt} failed:`, {
           error: error.message,
