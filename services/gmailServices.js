@@ -71,6 +71,11 @@ class GmailService {
       // Get list of message IDs
       const response = await this.gmail.users.messages.list(query);
       const messages = response.data.messages || [];
+      logger.info("Gmail API Request:", {
+        maxResults: query.maxResults,
+        syncAll,
+        userEmail: user.email,
+      });
 
       if (messages.length === 0) {
         logger.info(`No new emails found for user ${user.email}`);
@@ -95,6 +100,7 @@ class GmailService {
           const batchResults = await Promise.allSettled(batchPromises);
 
           batchResults.forEach((result, index) => {
+            console.log("Batch result:", result.value);
             if (
               result.status === "fulfilled" &&
               result.value &&
@@ -153,10 +159,16 @@ class GmailService {
       const dateStr = getHeader("Date");
 
       // Parse email body
-      const { body, bodyPlain, isTransactional } = parseEmailBody(
+      const { body, bodyPlain, isTransactional } = await parseEmailBody(
         message.payload,
         subject,
         from
+      );
+
+      console.log(
+        body,
+        isTransactional,
+        "Fetched email body and classification"
       );
 
       // Parse date

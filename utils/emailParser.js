@@ -20,6 +20,30 @@ function decodeBase64(base64String) {
   }
 }
 
+// Utility function to clean text
+function cleanText(text) {
+  return text
+    .replace(/\[\/?[^\]]+\]/g, "") // Remove [...] and [/...] patterns
+    .replace(/https?:\/\/[^\s\n]+/g, "") // Remove URLs
+    .replace(/[^\S\r\n]+/g, " ") // Replace multiple spaces with single space
+    .replace(/\n{3,}/g, "\n\n") // Replace multiple newlines with double newline
+    .replace(/[\u0591-\u05C7\u200B-\u200F\u202A-\u202E]/g, "") // Remove invisible chars
+    .trim();
+}
+
+// Modify the convert options
+const htmlToTextOptions = {
+  wordwrap: false,
+  selectors: [
+    { selector: "img", format: "skip" },
+    { selector: "a", options: { ignoreHref: true } },
+    { selector: "style", format: "skip" },
+    { selector: "script", format: "skip" },
+  ],
+  preserveNewlines: true,
+  singleNewLineParagraphs: true,
+};
+
 /**
  * Parse Gmail message payload to extract body content
  * @param {Object} payload - Gmail message payload
@@ -28,30 +52,40 @@ function decodeBase64(base64String) {
 async function parseEmailBody(payload, subject, from) {
   let body = "";
   let bodyPlain = "";
-  let classification = false;
+  let classification = null;
+
   try {
     if (payload.body && payload.body.data) {
-      // Simple message with body in the main payload
       const decodedBody = decodeBase64(payload.body.data);
       if (payload.mimeType === "text/plain") {
-        bodyPlain = decodedBody;
-        body = decodedBody;
+        bodyPlain = cleanText(decodedBody);
+        body = bodyPlain;
       } else {
         body = decodedBody;
-        bodyPlain = convert(decodedBody);
+        bodyPlain = cleanText(convert(decodedBody, htmlToTextOptions));
       }
     } else if (payload.parts && payload.parts.length > 0) {
-      // Multipart message - extract from parts
       const { htmlBody, plainBody } = extractFromParts(payload.parts);
-      body = htmlBody || plainBody || "";
-      bodyPlain = plainBody || convert(htmlBody) || "";
+      body =
+        cleanText(convert(htmlBody, htmlToTextOptions)) ||
+        cleanText(convert(plainBody, htmlToTextOptions)) ||
+        "";
+      bodyPlain =
+        cleanText(plainBody) ||
+        cleanText(convert(htmlBody, htmlToTextOptions)) ||
+        "";
     }
-
     // Fallback: try to extract from any nested structure
     if (!body && !bodyPlain) {
       const extracted = extractBodyRecursive(payload);
-      body = extracted.html || extracted.plain || "";
-      bodyPlain = extracted.plain || convert(extracted.html) || "";
+      body =
+        cleanText(convert(extracted.html, htmlToTextOptions)) ||
+        cleanText(convert(extracted.plain, htmlToTextOptions)) ||
+        "";
+      bodyPlain =
+        cleanText(extracted.plain) ||
+        cleanText(convert(extracted.html, htmlToTextOptions)) ||
+        "";
     }
 
     classification = await classificationService.classifyEmail({

@@ -41,7 +41,7 @@ class ClassificationService {
         // Handle different response formats from Hugging Face
         // const result = this.parseClassificationResponse(response.data);
 
-        return response.category === "transactional";
+        return response.data.category === "transactional";
       } catch (error) {
         logger.error(`Classification attempt ${attempt} failed:`, {
           error: error.message,
