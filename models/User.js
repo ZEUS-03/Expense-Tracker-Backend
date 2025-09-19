@@ -40,6 +40,9 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
     emails: [{ type: mongoose.Schema.Types.ObjectId, ref: "Email" }],
+    transactions: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Transaction" },
+    ],
     settings: {
       autoSync: {
         type: Boolean,

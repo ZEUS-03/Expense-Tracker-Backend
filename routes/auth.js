@@ -1,7 +1,7 @@
 const express = require("express");
 const { google } = require("googleapis");
 const User = require("../models/User");
-const { getAuthUrl, getTokens, setCredentials } = require("../config/oauth");
+const { getAuthUrl, getTokens, setCredentials } = require("../config/oAuth");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 const { authLimiter } = require("../middleware/ratelimiter");
 const logger = require("../utils/logger");
@@ -51,7 +51,7 @@ router.get("/google/callback", async (req, res) => {
 
     // Find or create user
     let user = await User.findOne({ googleId: userInfo.id });
-
+    let routeToRedirect = "";
     if (!user) {
       user = new User({
         googleId: userInfo.id,
@@ -61,12 +61,13 @@ router.get("/google/callback", async (req, res) => {
         refreshToken: tokens.refresh_token,
         accessToken: tokens.access_token,
       });
+      routeToRedirect = "/processing-emails";
     } else {
       // Update existing user
       user.name = userInfo.name;
       user.picture = userInfo.picture;
       user.accessToken = tokens.access_token;
-
+      routeToRedirect = "/dashboard";
       // Update refresh token if provided (Google only sends it on first auth)
       if (tokens.refresh_token) {
         user.refreshToken = tokens.refresh_token;
@@ -86,7 +87,7 @@ router.get("/google/callback", async (req, res) => {
       }
 
       logger.info(`User authenticated: ${user.email}`);
-      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+      res.redirect(`${process.env.FRONTEND_URL}${routeToRedirect}`);
     });
   } catch (error) {
     logger.error("OAuth callback processing error:", error);

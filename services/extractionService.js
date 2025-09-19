@@ -14,7 +14,7 @@ class ExtractionService {
       throw new Error("Extraction service URL not configured");
     }
 
-    if (!emailContent || emailContent.trim().length === 0) {
+    if (!emailContent) {
       logger.warn("Empty email content provided for extraction");
       return {
         amount: null,
@@ -34,11 +34,10 @@ class ExtractionService {
         );
 
         // Prepare the request payload
-        const payload = {
-          text: emailContent.substring(0, 15000), // Limit to first 15k characters for extraction
-        };
-
-        const response = await axios.post(this.serviceUrl, payload, {
+        // const payload = {
+        //   text: emailContent.substring(0, 15000), // Limit to first 15k characters for extraction
+        // };
+        const response = await axios.post(this.serviceUrl, emailContent, {
           timeout: this.timeout,
           headers: {
             "Content-Type": "application/json",
@@ -48,10 +47,6 @@ class ExtractionService {
 
         // Parse and validate the extraction result
         const result = this.parseExtractionResponse(response.data);
-
-        logger.info(
-          `Extraction completed: Amount=${result.amount}, Type=${result.type}, Merchant=${result.merchant}`
-        );
 
         return result;
       } catch (error) {
@@ -85,85 +80,64 @@ class ExtractionService {
   parseExtractionResponse(responseData) {
     try {
       let extractedData = responseData;
-
-      // Handle different response formats
-      if (responseData.extraction) {
-        extractedData = responseData.extraction;
-      } else if (responseData.result) {
-        extractedData = responseData.result;
-      } else if (responseData.data) {
-        extractedData = responseData.data;
+      const results = [];
+      if (!extractedData.success) {
+        return null;
       }
+      for (let item of extractedData.results) {
+        // Handle different response formats
+        if (!item.success) {
+          continue;
+        }
 
-      // Parse amount
-      const amount = this.parseAmount(
-        extractedData.amount ||
-          extractedData.final_amount ||
-          extractedData.total_amount
-      );
+        // Parse amount
+        const amount = this.parseAmount(item.final_amount);
 
-      // Parse currency
-      const currency = this.parseCurrency(
-        extractedData.currency || extractedData.curr || "USD"
-      );
+        // Validate required fields
+        if (!amount || amount <= 0) {
+          logger.warn("Invalid or missing amount in extraction result");
+          // result.error = "Invalid amount extracted";
+          continue;
+        }
 
-      // Parse date
-      const date = this.parseDate(
-        extractedData.date ||
-          extractedData.transaction_date ||
-          extractedData.trans_date
-      );
+        // Parse currency
+        // const currency = this.parseCurrency(
+        //   extractedData.currency || extractedData.curr || "USD"
+        // );
 
-      // Parse transaction type
-      const type = this.parseTransactionType(
-        extractedData.type ||
-          extractedData.transaction_type ||
-          extractedData.trans_type
-      );
+        // Parse date
+        const date = this.parseDate(item.transaction_date);
 
-      // Parse merchant
-      const merchant = this.parseMerchant(
-        extractedData.merchant || extractedData.vendor || extractedData.company
-      );
+        // Parse transaction type
+        const type = item.transaction_type;
 
-      // Parse confidence
-      const confidence = this.parseConfidence(
-        extractedData.confidence || extractedData.score
-      );
+        // Parse merchant
+        const merchant = this.parseMerchant(item.merchant);
 
-      // Additional fields
-      const category = extractedData.category || null;
-      const description =
-        extractedData.description || extractedData.desc || null;
+        // Parse confidence
+        // const confidence = this.parseConfidence(item.confidence || item.score);
 
-      const result = {
-        amount,
-        currency,
-        date,
-        type,
-        merchant,
-        category,
-        description,
-        confidence,
-        rawResponse: responseData,
-      };
+        const result = {
+          amount,
+          // currency,
+          date,
+          type,
+          merchant,
+          rawResponse: responseData,
+        };
 
-      // Validate required fields
-      if (!amount || amount <= 0) {
-        logger.warn("Invalid or missing amount in extraction result");
-        result.error = "Invalid amount extracted";
+        results.push(result);
       }
-
-      return result;
+      return results;
     } catch (error) {
       logger.error("Error parsing extraction response:", error);
       return {
         amount: null,
-        currency: null,
+        // currency: null,
         date: null,
         type: null,
         merchant: null,
-        confidence: 0,
+        // confidence: 0,
         error: "Response parsing failed",
         rawResponse: responseData,
       };
@@ -266,52 +240,6 @@ class ExtractionService {
     } catch (error) {
       logger.warn("Error parsing date:", dateStr, error);
       return null;
-    }
-  }
-
-  parseTransactionType(typeStr) {
-    if (!typeStr) return "other";
-
-    try {
-      const str = String(typeStr).toLowerCase();
-
-      // Map various strings to our standard types
-      const typeMapping = {
-        bill: "bill_payment",
-        bill_payment: "bill_payment",
-        payment: "bill_payment",
-        utility: "bill_payment",
-        purchase: "purchase",
-        buy: "purchase",
-        bought: "purchase",
-        order: "purchase",
-        shopping: "purchase",
-        subscription: "subscription",
-        recurring: "subscription",
-        monthly: "subscription",
-        refund: "refund",
-        return: "refund",
-        transfer: "transfer",
-        send: "transfer",
-        sent: "transfer",
-      };
-
-      // Check for exact matches first
-      if (typeMapping[str]) {
-        return typeMapping[str];
-      }
-
-      // Check for partial matches
-      for (const [key, value] of Object.entries(typeMapping)) {
-        if (str.includes(key)) {
-          return value;
-        }
-      }
-
-      return "other";
-    } catch (error) {
-      logger.warn("Error parsing transaction type:", typeStr, error);
-      return "other";
     }
   }
 

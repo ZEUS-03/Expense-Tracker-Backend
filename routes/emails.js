@@ -7,6 +7,7 @@ const gmailService = require("../services/gmailServices");
 const classificationService = require("../services/classificationService");
 const extractionService = require("../services/extractionService");
 const logger = require("../utils/logger");
+const User = require("../models/User");
 
 const router = express.Router();
 
@@ -217,7 +218,7 @@ router.get("/transactions", async (req, res) => {
     }
 
     const transactions = await Transaction.find(query)
-      .populate("emailId", "subject from date")
+      // .populate("emailId", "subject from date")
       .sort({ transactionDate: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -282,8 +283,7 @@ router.get("/transactions/stats", async (req, res) => {
 async function syncEmails(user, maxResults, syncAll) {
   try {
     logger.info(`Starting email sync for user: ${user.email}`);
-    console.log(user, maxResults, syncAll);
-    const emails = await gmailService.fetchEmails(user, maxResults, syncAll);
+    let emails = await gmailService.fetchEmails(user, maxResults, syncAll);
     let savedCount = 0;
     for (const emailData of emails) {
       try {
@@ -295,8 +295,13 @@ async function syncEmails(user, maxResults, syncAll) {
             gmailId: emailData.id,
             ...emailData,
           });
+
           await email.save();
           savedCount++;
+
+          await User.findByIdAndUpdate(user._id, {
+            $push: { emails: email._id },
+          });
         }
       } catch (emailError) {
         logger.error(`Error saving email ${emailData.id}:`, emailError);
@@ -310,6 +315,38 @@ async function syncEmails(user, maxResults, syncAll) {
     logger.info(
       `Sync completed for ${user.email}. Saved ${savedCount} new emails.`
     );
+    const processedEmails = { emails: [], filters: {} };
+    emails.forEach((email, index) => {
+      processedEmails.emails.push(
+        String(email.subject) + String(email.bodyPlain) || String(email.body)
+      );
+    });
+    const transactionDetails = await extractionService.extractTransaction(
+      processedEmails
+    );
+    for (const item of transactionDetails) {
+      if (item && item.amount) {
+        const transaction = new Transaction({
+          // emailId: email._id,
+          userId: user._id,
+          amount: item.amount,
+          currency: item.currency || "INR",
+          transactionDate: item.date,
+          // transactionDate: item.date || email.date,
+          transactionType: item.type || "other",
+          merchant: item.merchant,
+          rawExtraction: item,
+        });
+
+        await transaction.save();
+
+        // Update user transaction count
+        await User.findByIdAndUpdate(user._id, {
+          $inc: { transactionalEmails: 1 },
+          $push: { transactions: transaction._id },
+        });
+      }
+    }
   } catch (error) {
     logger.error(`Sync failed for user ${user.email}:`, error);
     await user.updateSyncStatus(false);

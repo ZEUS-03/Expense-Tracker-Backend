@@ -5,7 +5,7 @@ const transactionSchema = new mongoose.Schema(
     emailId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Email",
-      required: true,
+      // required: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -18,12 +18,12 @@ const transactionSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: "USD",
+      default: "INR",
       uppercase: true,
     },
     transactionDate: {
       type: Date,
-      required: true,
+      // required: true,
     },
     transactionType: {
       type: String,

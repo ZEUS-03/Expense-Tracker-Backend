@@ -1,5 +1,5 @@
 const { google } = require("googleapis");
-const { setCredentials, refreshAccessToken } = require("../config/oauth");
+const { setCredentials, refreshAccessToken } = require("../config/oAuth");
 const parseEmailBody = require("../utils/emailParser");
 const logger = require("../utils/logger");
 
@@ -100,7 +100,6 @@ class GmailService {
           const batchResults = await Promise.allSettled(batchPromises);
 
           batchResults.forEach((result, index) => {
-            console.log("Batch result:", result.value);
             if (
               result.status === "fulfilled" &&
               result.value &&
@@ -163,12 +162,6 @@ class GmailService {
         message.payload,
         subject,
         from
-      );
-
-      console.log(
-        body,
-        isTransactional,
-        "Fetched email body and classification"
       );
 
       // Parse date
