@@ -24,14 +24,16 @@ router.post("/sync", syncLimiter, checkSyncPermission, async (req, res) => {
     await user.updateSyncStatus(true);
 
     // Start sync process (don't await - run in background)
-    syncEmails(user, maxResults, syncAll).catch((error) => {
-      logger.error(`Sync error for user ${user.email}:`, error);
-      user.updateSyncStatus(false);
-    });
+    const response = await syncEmails(user, maxResults, syncAll).catch(
+      (error) => {
+        logger.error(`Sync error for user ${user.email}:`, error);
+        user.updateSyncStatus(false);
+      }
+    );
 
     res.json({
+      transactionCount: response || 0,
       message: "Email sync started",
-      syncInProgress: true,
     });
   } catch (error) {
     logger.error("Sync initiation error:", error);
@@ -347,6 +349,7 @@ async function syncEmails(user, maxResults, syncAll) {
         });
       }
     }
+    return transactionDetails;
   } catch (error) {
     logger.error(`Sync failed for user ${user.email}:`, error);
     await user.updateSyncStatus(false);

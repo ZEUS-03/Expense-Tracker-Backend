@@ -61,7 +61,7 @@ router.get("/google/callback", async (req, res) => {
         refreshToken: tokens.refresh_token,
         accessToken: tokens.access_token,
       });
-      routeToRedirect = "/processing-emails";
+      routeToRedirect = "/email-sync";
     } else {
       // Update existing user
       user.name = userInfo.name;

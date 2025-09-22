@@ -37,13 +37,17 @@ class ExtractionService {
         // const payload = {
         //   text: emailContent.substring(0, 15000), // Limit to first 15k characters for extraction
         // };
-        const response = await axios.post(this.serviceUrl, emailContent, {
-          timeout: this.timeout,
-          headers: {
-            "Content-Type": "application/json",
-            "User-Agent": "EmailTransactionBackend/1.0",
-          },
-        });
+        const response = await axios.post(
+          `${this.serviceUrl}/extract/batch`,
+          emailContent,
+          {
+            timeout: this.timeout,
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "EmailTransactionBackend/1.0",
+            },
+          }
+        );
 
         // Parse and validate the extraction result
         const result = this.parseExtractionResponse(response.data);
