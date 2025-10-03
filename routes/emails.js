@@ -45,6 +45,15 @@ router.post("/sync", syncLimiter, checkSyncPermission, async (req, res) => {
   }
 });
 
+// router.get("/transactions/stats", async (req, res) => {
+//   const [monthlyTotal, totalTransactionAmount] = await Promise.all([
+//     Transaction.getThisMonthTransactionsTotal(req.user._id),
+//     Transaction.getTotalTransactionAmount(req.user._id),
+//   ]);
+
+//   return res.json({ monthlyTotal, totalTransactionAmount });
+// });
+
 // Get sync status
 router.get("/sync/status", (req, res) => {
   res.json({
@@ -119,35 +128,35 @@ router.get("/", async (req, res) => {
 });
 
 // Get specific email details
-router.get("/:emailId", async (req, res) => {
-  try {
-    const email = await Email.findOne({
-      _id: req.params.emailId,
-      userId: req.user._id,
-    });
+// router.get("/:emailId", async (req, res) => {
+//   try {
+//     const email = await Email.findOne({
+//       _id: req.params.emailId,
+//       userId: req.user._id,
+//     });
 
-    if (!email) {
-      return res.status(404).json({
-        error: "Email not found",
-        code: "EMAIL_NOT_FOUND",
-      });
-    }
+//     if (!email) {
+//       return res.status(404).json({
+//         error: "Email not found",
+//         code: "EMAIL_NOT_FOUND",
+//       });
+//     }
 
-    // Get associated transaction if exists
-    const transaction = await Transaction.findOne({ emailId: email._id });
+//     // Get associated transaction if exists
+//     const transaction = await Transaction.findOne({ emailId: email._id });
 
-    res.json({
-      email,
-      transaction,
-    });
-  } catch (error) {
-    logger.error("Get email details error:", error);
-    res.status(500).json({
-      error: "Failed to fetch email details",
-      code: "FETCH_EMAIL_DETAILS_ERROR",
-    });
-  }
-});
+//     res.json({
+//       email,
+//       transaction,
+//     });
+//   } catch (error) {
+//     logger.error("Get email details error:", error);
+//     res.status(500).json({
+//       error: "Failed to fetch email details",
+//       code: "FETCH_EMAIL_DETAILS_ERROR",
+//     });
+//   }
+// });
 
 // Process unprocessed emails
 router.post("/process", processLimiter, async (req, res) => {
@@ -196,6 +205,7 @@ router.get("/transactions", async (req, res) => {
       type,
       minAmount,
       maxAmount,
+      merchant,
     } = req.query;
 
     const query = { userId: req.user._id };
@@ -211,7 +221,9 @@ router.get("/transactions", async (req, res) => {
     if (type) {
       query.transactionType = type;
     }
-
+    if (merchant) {
+      query.merchant = { $regex: new RegExp(merchant, "i") };
+    }
     // Amount range filter
     if (minAmount || maxAmount) {
       query.amount = {};
@@ -250,26 +262,39 @@ router.get("/transactions", async (req, res) => {
 router.get("/transactions/stats", async (req, res) => {
   try {
     const { year = new Date().getFullYear() } = req.query;
-
-    const [monthlyStats, totalStats, typeStats] = await Promise.all([
-      Transaction.getMonthlyStats(req.user._id, parseInt(year)),
-      Transaction.getTotalAmount(req.user._id),
-      Transaction.aggregate([
-        { $match: { userId: req.user._id } },
-        {
-          $group: {
-            _id: "$transactionType",
-            totalAmount: { $sum: "$amount" },
-            count: { $sum: 1 },
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const [lastMonthStats, monthlyStats, totalStats, weekData, typeStats] =
+      await Promise.all([
+        Transaction.getThisMonthTransactionsTotal(req.user._id),
+        Transaction.getMonthlyStats(req.user._id, parseInt(year)),
+        Transaction.getTotalAmount(req.user._id),
+        Transaction.getDailyWeekTotal(req.user._id),
+        Transaction.aggregate([
+          {
+            $match: {
+              userId: req.user._id,
+              transactionDate: { $gte: startDate, $lt: endDate },
+            },
           },
-        },
-      ]),
-    ]);
+          {
+            $group: {
+              _id: "$transactionType",
+              totalAmount: { $sum: "$amount" },
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
 
     res.json({
+      lastMonthStats,
       monthlyStats,
       totalStats,
+      weekData,
       typeStats,
+
       year: parseInt(year),
     });
   } catch (error) {
@@ -318,38 +343,43 @@ async function syncEmails(user, maxResults, syncAll) {
       `Sync completed for ${user.email}. Saved ${savedCount} new emails.`
     );
     const processedEmails = { emails: [], filters: {} };
+    const datesOfProcessedEmails = [];
     emails.forEach((email, index) => {
       processedEmails.emails.push(
         String(email.subject) + String(email.bodyPlain) || String(email.body)
       );
+      datesOfProcessedEmails.push(email.date);
     });
-    const transactionDetails = await extractionService.extractTransaction(
-      processedEmails
-    );
-    for (const item of transactionDetails) {
-      if (item && item.amount) {
-        const transaction = new Transaction({
-          // emailId: email._id,
-          userId: user._id,
-          amount: item.amount,
-          currency: item.currency || "INR",
-          transactionDate: item.date,
-          // transactionDate: item.date || email.date,
-          transactionType: item.type || "other",
-          merchant: item.merchant,
-          rawExtraction: item,
-        });
+    if (processedEmails.emails.length > 0) {
+      const transactionDetails = await extractionService.extractTransaction(
+        processedEmails
+      );
+      for (const idx in transactionDetails) {
+        const item = transactionDetails[idx];
+        if (item && item.amount) {
+          const transaction = new Transaction({
+            // emailId: email._id,
+            userId: user._id,
+            amount: item.amount,
+            currency: item.currency || "INR",
+            transactionDate: item.date || datesOfProcessedEmails[idx],
+            // transactionDate: item.date || email.date,
+            transactionType: item.type || "other",
+            merchant: item.merchant,
+          });
 
-        await transaction.save();
+          await transaction.save();
 
-        // Update user transaction count
-        await User.findByIdAndUpdate(user._id, {
-          $inc: { transactionalEmails: 1 },
-          $push: { transactions: transaction._id },
-        });
+          // Update user transaction count
+          await User.findByIdAndUpdate(user._id, {
+            $inc: { transactionalEmails: 1 },
+            $push: { transactions: transaction._id },
+          });
+        }
       }
+      return transactionDetails;
     }
-    return transactionDetails;
+    return res.json({ message: "No transactional emails found" });
   } catch (error) {
     logger.error(`Sync failed for user ${user.email}:`, error);
     await user.updateSyncStatus(false);
@@ -392,7 +422,6 @@ async function processEmails(userId, emails) {
               transactionType: extraction.type || "other",
               merchant: extraction.merchant,
               extractionConfidence: extraction.confidence,
-              rawExtraction: extraction,
             });
 
             await transaction.save();

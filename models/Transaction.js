@@ -45,7 +45,6 @@ const transactionSchema = new mongoose.Schema(
       min: 0,
       max: 1,
     },
-    rawExtraction: mongoose.Schema.Types.Mixed, // Store raw ML model output
     verified: {
       type: Boolean,
       default: false,
@@ -111,6 +110,83 @@ transactionSchema.statics.getTotalAmount = function (
     },
   ]);
 };
+
+transactionSchema.statics.getThisMonthTransactionsTotal = function (userId) {
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  return this.aggregate([
+    {
+      $match: {
+        userId: userId,
+        transactionDate: { $gte: startDate, $lt: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null, // group all matched docs together
+        totalAmount: { $sum: "$amount" },
+        transactions: { $push: "$$ROOT" }, // if you want the full docs as well
+      },
+    },
+  ]);
+};
+
+transactionSchema.statics.getTotalTransactionAmount = function (userId) {
+  return this.aggregate([
+    { $match: { userId: userId } },
+    {
+      $group: {
+        _id: null, // group all matched docs together
+        totalSpent: { $sum: "$amount" },
+      },
+    },
+  ]);
+};
+
+transactionSchema.statics.getDailyWeekTotal = function (userId) {
+  return this.aggregate([
+    {
+      $match: {
+        userId: userId,
+        transactionDate: {
+          $gte: new Date(
+            new Date().setHours(0, 0, 0, 0) - new Date().getDay() * 86400000
+          ), // Start of Sunday
+          $lt: new Date(
+            new Date().setHours(0, 0, 0, 0) +
+              (7 - new Date().getDay()) * 86400000
+          ), // End of Saturday
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$transactionDate" },
+        },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    {
+      $sort: { _id: 1 }, // Sort by date ascending
+    },
+  ]);
+};
+// transactionSchema.statics.getThisMonthTransactions = function (userId) {
+//   const now = new Date();
+//   const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+//   const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+//   return this.find({
+//     userId,
+//     transactionDate: {
+//       $gte: startDate,
+//       $lt: endDate,
+//     },
+//   }).sort({ transactionDate: -1 });
+// };
 
 transactionSchema.statics.getMonthlyStats = function (userId, year) {
   return this.aggregate([

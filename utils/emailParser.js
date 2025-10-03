@@ -75,18 +75,6 @@ async function parseEmailBody(payload, subject, from) {
         cleanText(convert(htmlBody, htmlToTextOptions)) ||
         "";
     }
-    // Fallback: try to extract from any nested structure
-    if (!body && !bodyPlain) {
-      const extracted = extractBodyRecursive(payload);
-      body =
-        cleanText(convert(extracted.html, htmlToTextOptions)) ||
-        cleanText(convert(extracted.plain, htmlToTextOptions)) ||
-        "";
-      bodyPlain =
-        cleanText(extracted.plain) ||
-        cleanText(convert(extracted.html, htmlToTextOptions)) ||
-        "";
-    }
 
     classification = await classificationService.classifyEmail({
       body: bodyPlain || body,

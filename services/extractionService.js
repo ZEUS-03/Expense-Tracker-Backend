@@ -127,7 +127,6 @@ class ExtractionService {
           date,
           type,
           merchant,
-          rawResponse: responseData,
         };
 
         results.push(result);
