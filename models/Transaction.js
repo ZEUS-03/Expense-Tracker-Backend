@@ -33,6 +33,8 @@ const transactionSchema = new mongoose.Schema(
         "subscription",
         "refund",
         "transfer",
+        "entertainment",
+        "fuel",
         "other",
       ],
       required: true,

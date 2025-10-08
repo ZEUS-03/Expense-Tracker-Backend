@@ -10,6 +10,7 @@ require("dotenv").config();
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/auth");
 const emailRoutes = require("./routes/emails");
+const transactionRoutes = require("./routes/transactions");
 const logger = require("./utils/logger");
 
 const app = express();
@@ -64,6 +65,7 @@ app.use(
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/emails", emailRoutes);
+app.use("/api/transactions", transactionRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
