@@ -53,7 +53,7 @@ class GmailService {
       const query = {
         userId: "me",
         maxResults: Math.min(maxResults, 500), // Gmail API limit
-        // q: syncAll ? "" : "newer_than:30d", // Default to last 30 days if not syncing all
+        q: syncAll ? "" : "newer_than:30d", // Default to last 30 days if not syncing all
       };
 
       // If not syncing all, add date filter based on last sync
@@ -61,13 +61,14 @@ class GmailService {
         const lastSyncTimestamp = Math.floor(
           user.lastSyncDate.getTime() / 1000
         );
-        // query.q = `after:${lastSyncTimestamp}`;
+        query.q = `after:${lastSyncTimestamp}`;
       }
 
       logger.info(
         `Fetching emails for user ${user.email} with query: ${query.q}`
       );
 
+      console.log(query, "query=======================>");
       // Get list of message IDs
       const response = await this.gmail.users.messages.list(query);
       const messages = response.data.messages || [];

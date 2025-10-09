@@ -379,7 +379,7 @@ async function syncEmails(user, maxResults, syncAll) {
       }
       return transactionDetails;
     }
-    return res.json({ message: "No transactional emails found" });
+    return { message: "No transactional emails found" };
   } catch (error) {
     logger.error(`Sync failed for user ${user.email}:`, error);
     await user.updateSyncStatus(false);

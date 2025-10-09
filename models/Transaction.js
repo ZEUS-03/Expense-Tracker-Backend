@@ -205,7 +205,6 @@ transactionSchema.statics.getMonthlyStats = function (userId, year) {
       $group: {
         _id: {
           month: { $month: "$transactionDate" },
-          type: "$transactionType",
         },
         totalAmount: { $sum: "$amount" },
         count: { $sum: 1 },
