@@ -21,10 +21,23 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
+
+const allowedOrigins = [
+  "http://pennytrail.netlify.app",
+  "https://pennytrail.netlify.app",
+  "http://localhost:3000",
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // if you're using cookies/sessions
   })
 );
 
