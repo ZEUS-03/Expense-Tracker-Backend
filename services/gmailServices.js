@@ -68,7 +68,6 @@ class GmailService {
         `Fetching emails for user ${user.email} with query: ${query.q}`
       );
 
-      console.log(query, "query=======================>");
       // Get list of message IDs
       const response = await this.gmail.users.messages.list(query);
       const messages = response.data.messages || [];

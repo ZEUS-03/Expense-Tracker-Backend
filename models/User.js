@@ -25,7 +25,6 @@ const userSchema = new mongoose.Schema(
     accessToken: String,
     lastSyncDate: {
       type: Date,
-      default: Date.now,
     },
     syncInProgress: {
       type: Boolean,

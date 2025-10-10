@@ -61,7 +61,7 @@ const emailSchema = new mongoose.Schema(
 
 // Indexes for efficient queries
 emailSchema.index({ userId: 1, date: -1 });
-emailSchema.index({ gmailId: 1 });
+emailSchema.index({ gmailId: 1 }, { unique: true, sparse: true });
 emailSchema.index({ isTransactional: 1 });
 emailSchema.index({ processed: 1 });
 emailSchema.index({ userId: 1, isTransactional: 1 });

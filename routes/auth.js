@@ -64,6 +64,7 @@ router.get("/google/callback", async (req, res) => {
       routeToRedirect = "/email-sync";
     } else {
       // Update existing user
+
       user.name = userInfo.name;
       user.picture = userInfo.picture;
       user.accessToken = tokens.access_token;
@@ -85,7 +86,6 @@ router.get("/google/callback", async (req, res) => {
           `${process.env.FRONTEND_URL}/auth/error?error=session_error`
         );
       }
-
       logger.info(`User authenticated: ${user.email}`);
       res.redirect(`${process.env.FRONTEND_URL}${routeToRedirect}`);
     });
