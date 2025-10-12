@@ -15,7 +15,7 @@ const apiLimiter = rateLimit({
 // Strict limiter for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15, // Limit each IP to 5 auth requests per windowMs
+  max: 50, // Limit each IP to 5 auth requests per windowMs
   message: {
     error: "Too many authentication attempts",
     code: "AUTH_RATE_LIMIT_EXCEEDED",
@@ -27,7 +27,7 @@ const authLimiter = rateLimit({
 // Email sync limiter (more restrictive)
 const syncLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 sync requests per hour
+  max: 50, // Limit each IP to 10 sync requests per hour
   message: {
     error: "Too many sync requests",
     code: "SYNC_RATE_LIMIT_EXCEEDED",
