@@ -22,24 +22,33 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-const allowedOrigins = [
-  "http://pennytrail.netlify.app",
-  "https://pennytrail.netlify.app",
-  "http://localhost:3000",
-];
+// const allowedOrigins = [
+//   "http://pennytrail.netlify.app",
+//   "https://pennytrail.netlify.app",
+//   "http://localhost:3000",
+// ];
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true, // if you're using cookies/sessions
+    origin: "https://pennytrail.netlify.app",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     credentials: true, // if you're using cookies/sessions
+//   })
+// );
 
 // Rate limiting
 const limiter = rateLimit({
@@ -69,10 +78,10 @@ app.use(
       mongoUrl: process.env.MONGODB_URI,
     }),
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: true,
+      sameSite: "none",
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
