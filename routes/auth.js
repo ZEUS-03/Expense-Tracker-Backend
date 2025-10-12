@@ -77,6 +77,13 @@ router.get("/google/callback", async (req, res) => {
 
     await user.save();
 
+    console.log("=== SESSION DEBUG ===");
+    console.log("User ID:", user._id);
+    console.log("Session before save:", req.session);
+    console.log("Cookie settings:", req.sessionStore.options.cookie);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
+
     // Set session
     req.session.userId = user._id;
     req.session.save((err) => {
@@ -86,6 +93,11 @@ router.get("/google/callback", async (req, res) => {
           `${process.env.FRONTEND_URL}/auth/error?error=session_error`
         );
       }
+
+      console.log("Session after save:", req.session);
+      console.log("Session ID:", req.sessionID);
+      console.log("=== END SESSION DEBUG ===");
+
       logger.info(`User authenticated: ${user.email}`);
       res.redirect(`${process.env.FRONTEND_URL}${routeToRedirect}`);
     });
@@ -99,6 +111,12 @@ router.get("/google/callback", async (req, res) => {
 
 // Get current user info
 router.get("/me", requireAuth, (req, res) => {
+  console.log("=== /me REQUEST DEBUG ===");
+  console.log("Session:", req.session);
+  console.log("Session ID:", req.sessionID);
+  console.log("User:", req.user ? req.user.email : "NO USER");
+  console.log("Cookies:", req.headers.cookie);
+  console.log("=== END /me DEBUG ===");
   res.json({
     user: {
       id: req.user._id,
