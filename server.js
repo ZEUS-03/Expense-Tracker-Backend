@@ -16,6 +16,8 @@ const logger = require("./utils/logger");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set("trust proxy", 1);
+
 // Connect to database
 connectDB();
 
@@ -74,6 +76,7 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
     }),
